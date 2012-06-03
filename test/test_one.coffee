@@ -1,4 +1,6 @@
 
+# test coffee-model-couch
+
 cmc     = require '../coffee-model-couch'
 expect  = require 'expect.js'
 couchdb = require 'couchdb-api' # by Dominic Barnes
@@ -7,6 +9,11 @@ server = couchdb.srv()
 db     = server.db('test-coffee-model-couch')
 
 say = console.log
+
+check = (err,desc='')->
+  if err
+    s = desc + ' : ' + err
+    throw new Error s
 
 class Pet extends cmc.CouchModel
   fields:
@@ -22,14 +29,15 @@ test_data = null # set in "beforeEach"
 
 test_3_arg_constructor = (p,done)->
   expect(p.get_id()).to.be('id-separate')
-  expect(p.data).to.have.key('_id')
-  expect(p.data).not.to.have.key('_rev')
+  expect(p.has_id()).to.be(true)
+  expect(p.has_rev()).to.be(false)
   p.save (err,ok)->
     expect(err).to.be(null)
     expect(ok).to.be.ok()
-    expect(p.data).to.have.key('_id')
-    expect(p.data).to.have.key('_rev')
+    #expect(p.data).to.have.key('_id')
+    #expect(p.data).to.have.key('_rev')
     expect(p.get_id()).to.be('id-separate')
+    expect(p.has_rev()).to.be(true)
     expect(p.get 'name').to.be('Snowball')
     done()
 
@@ -54,11 +62,14 @@ module.exports =
           done()
 
   afterEach:(done)->
-    db.drop (err,res)->
-      if not err
-        done()
-      if err
-        throw new Error 'ERROR dropping db!'
+    if false # drop db immediately?
+      db.drop (err,res)->
+        if not err
+          done()
+        if err
+          throw new Error 'ERROR dropping db!'
+    else
+      done()
 
   construct_with_db:
     save:
@@ -67,8 +78,16 @@ module.exports =
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).to.have.key('_id')
-          expect(p.data).to.have.key('_rev')
+
+          id = p.get_id()
+          rev = p.get_rev()
+
+          #say 'after save doc:'
+          #say 'id='+id
+          #say 'rev='+rev
+
+          expect(p.get_id()).to.be.ok()
+          expect(p.get_rev()).to.be.ok()
           done()
 
   construct_with_db_and_data:
@@ -76,13 +95,13 @@ module.exports =
       works:(done)->
         p = new Pet(db,{name:'Snowball'})
         expect(p.get 'name').to.be('Snowball')
-        expect(p.data).not.to.have.key('_id')
-        expect(p.data).not.to.have.key('_rev')
+        expect(p.has_id()).to.be(false)
+        expect(p.has_rev()).to.be(false)
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).to.have.key('_id')
-          expect(p.data).to.have.key('_rev')
+          expect(p.has_id()).to.be(true)
+          expect(p.has_rev()).to.be(true)
           done()
 
   construct_with_data_and_db:
@@ -90,13 +109,15 @@ module.exports =
       works:(done)->
         p = new Pet({name:'Snowball'},db)
         expect(p.get 'name').to.be('Snowball')
-        expect(p.data).not.to.have.key('_id')
-        expect(p.data).not.to.have.key('_rev')
+        expect(p.has_id()).to.be(false)
+        expect(p.has_rev()).to.be(false)
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).to.have.key('_id')
-          expect(p.data).to.have.key('_rev')
+          expect(p.data).not.to.have.key('_id')
+          expect(p.data).not.to.have.key('_rev')
+          expect(p.has_id()).to.be(true)
+          expect(p.has_rev()).to.be(true)
           done()
 
   construct_with_db_and_id:
@@ -104,13 +125,15 @@ module.exports =
       works:(done)->
         p = new Pet(db,'Snowball')
         expect(p.get_id()).to.be('Snowball')
-        expect(p.data).to.have.key('_id')
+        expect(p.data).not.to.have.key('_id')
         expect(p.data).not.to.have.key('_rev')
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).to.have.key('_id')
-          expect(p.data).to.have.key('_rev')
+          expect(p.data).not.to.have.key('_id')
+          expect(p.data).not.to.have.key('_rev')
+          expect(p.has_id()).to.be(true)
+          expect(p.has_rev()).to.be(true)
           expect(p.get_id()).to.be('Snowball')
           expect(p.get 'name').to.be(undefined)
           done()
@@ -120,47 +143,48 @@ module.exports =
       works:(done)->
         p = new Pet('Snowball',db)
         expect(p.get_id()).to.be('Snowball')
-        expect(p.data).to.have.key('_id')
+        expect(p.data).not.to.have.key('_id')
         expect(p.data).not.to.have.key('_rev')
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).to.have.key('_id')
-          expect(p.data).to.have.key('_rev')
+          expect(p.data).not.to.have.key('_id')
+          expect(p.data).not.to.have.key('_rev')
+          expect(p.has_id()).to.be(true)
+          expect(p.has_rev()).to.be(true)
           expect(p.get_id()).to.be('Snowball')
           expect(p.get 'name').to.be(undefined)
           done()
+
 
   save_with_no_id:
     and_retrieve:
       has_id_and_rev:(done)->
 
-        pet = new Pet()
-        pet.set_db(db)
-        pet.set 'species','dog'
-        pet.set 'name','Snowball'
-
-        expect(pet).not.to.have.key('_id')
-        expect(pet).not.to.have.key('_rev')
-
-        pet.save (err,ok)->
+        p = new Pet()
+        p.set_db(db)
+        p.set 'species','dog'
+        p.set 'name','Snowball'
+        p.save (err,ok)->
 
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(pet.data).to.have.key('_id')
-          expect(pet.data).to.have.key('_rev')
+          expect(p.data).not.to.have.key('_id')
+          expect(p.data).not.to.have.key('_rev')
+          expect(p.data).not.to.have.key('id')
+          expect(p.data).not.to.have.key('rev')
+          expect(p.has_id()).to.be(true)
+          expect(p.has_rev()).to.be(true)
 
-          pet_id = pet.get_id()
+          pet_id = p.get_id()
 
           p2 = new Pet(pet_id)
           p2.set_db(db)
           p2.retrieve (err,resp)->
-            if err
-              throw new Error err
-            else
-              name = p2.get 'name'
-              expect(name).to.be('Snowball')
-              done()
+            check err
+            name = p2.get 'name'
+            expect(name).to.be('Snowball')
+            done()
 
 
   construct_with_args_in_any_order:
@@ -230,10 +254,11 @@ module.exports =
     on_retrieve:
       works:(done)->
         p = new Pet(db,test_data)
-        p.on 'retrieve', ->
-          done()
         p.save ->
-          p.retrieve()
+          p2 = new Pet db,p.id
+          p2.on 'retrieve', ->
+            done()
+          p2.retrieve()
 
 
   boolean_field:
@@ -310,5 +335,129 @@ module.exports =
           expect(err).not.to.be(null)
           expect(p.has_unsaved_changes()).to.be(true)
           done()
+
+
+  dates:
+    save:
+      and_retrieve:(done)->
+
+        class Pet extends cmc.CouchModel
+          fields:
+            date_of_birth:
+              type:'date'
+
+        p = new Pet db
+        dt = new Date(2012,05,02) # june 2,2012
+        p.set 'date_of_birth', dt
+        p.save (err,ok)->
+          check err
+          id = p.get_id()
+          p2 = new Pet id,db
+          p2.retrieve (err,ok)->
+            check err,'retrieve'
+            new_dt = p2.get 'date_of_birth'
+            expect( new_dt instanceof Date ).to.be(true)
+            expect(new_dt.getFullYear()).to.be(2012)
+            expect(new_dt.getMonth()).to.be(5)
+            expect(new_dt.getDate()).to.be(2)
+            # you cant' just use == on two dates!
+            if new_dt.getTime() != dt.getTime()
+              e = new Error "Date Failure"
+              say 'DATE FAIL'
+              say 'expected date : ' + String(dt)
+              say 'actual   date : ' + String(new_dt)
+              e.expected = String(dt)
+              e.actual = String(new_dt)
+              throw e
+            else
+              done()
+
+  saving_repeatedly:
+    is_ok:
+      it_works:(done)->
+
+        class Pet extends cmc.CouchModel
+          fields:
+            name:
+              type:'string'
+
+        p = new Pet
+        p.set_db db
+        p.save (err,ok)->
+          p.set 'name','Snowball'
+          p.save (err,ok)->
+            expect(p.get 'name').to.be('Snowball')
+            p.set 'name','Snowball2'
+            p.save (err,ok)->
+              expect(p.get 'name').to.be('Snowball2')
+              done()
+
+
+
+  retrieving_twice:
+    would_lose_data:
+      so_its_not_allowed:(done)->
+
+        class Pet extends cmc.CouchModel
+          fields:
+            name:
+              type:'string'
+
+        p = new Pet
+        p.set_db db
+        p.set 'name','Snowball'
+        p.save (err,ok)->
+          expect()
+          p.set 'name', 'Beelzebub'
+          try
+            p.retrieve()
+          catch e
+            expect(e.toString()).to.be('Error: retrieve() called when rev is already set')
+            done()
+            return
+
+          throw new Exception "allowed retrieve twice!"
+
+  reretrieve:
+    abandons_unsaved_changes:
+      allowed_after_save:(done)->
+        p = new Pet db
+        p.save ->
+          p.reretrieve (err,ok)->
+            if ok then done()
+
+      allowed_after_retrieve:(done)->
+        p = new Pet db
+        p.save ->
+          p2 = new Pet db, p.id
+          p2.retrieve ->
+            p2.reretrieve ->
+              done()
+
+      not_allowed_if_not_saved:(done)->
+        p = new Pet db
+        try
+          p.reretrieve()
+        catch e
+          done()
+          return
+        throw new Error 'reretrieve allowed when not saved'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
