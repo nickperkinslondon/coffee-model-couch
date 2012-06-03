@@ -181,7 +181,10 @@ class CouchModel extends coffee_model.Model
           date_array = date_to_array(val)
           doc[key] = date_array
         else
-          throw new Error "what? '#{key}' should be a date!"
+          if val
+            throw new Error "what? '#{key}' should be a date!, not a "+(typeof val)
+          else
+            # val is null or undefined...no problem
       else
         doc[key] = val
 

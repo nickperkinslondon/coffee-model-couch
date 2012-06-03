@@ -443,6 +443,22 @@ module.exports =
           return
         throw new Error 'reretrieve allowed when not saved'
 
+  save_a_null_date:
+    is_not_a_problem:
+      so_it_works:(done)->
+
+        class Pet extends cmc.CouchModel
+          fields:
+            date_of_birth:
+              type:'date'
+
+        p = new Pet db
+        p.save (err,ok)->
+          expect(ok).to.be.ok()
+          done()
+
+
+
 
 
 
