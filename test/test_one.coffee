@@ -34,8 +34,6 @@ test_3_arg_constructor = (p,done)->
   p.save (err,ok)->
     expect(err).to.be(null)
     expect(ok).to.be.ok()
-    #expect(p.data).to.have.key('_id')
-    #expect(p.data).to.have.key('_rev')
     expect(p.get_id()).to.be('id-separate')
     expect(p.has_rev()).to.be(true)
     expect(p.get 'name').to.be('Snowball')
@@ -114,8 +112,6 @@ module.exports =
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).not.to.have.key('_id')
-          expect(p.data).not.to.have.key('_rev')
           expect(p.has_id()).to.be(true)
           expect(p.has_rev()).to.be(true)
           done()
@@ -125,13 +121,9 @@ module.exports =
       works:(done)->
         p = new Pet(db,'Snowball')
         expect(p.get_id()).to.be('Snowball')
-        expect(p.data).not.to.have.key('_id')
-        expect(p.data).not.to.have.key('_rev')
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).not.to.have.key('_id')
-          expect(p.data).not.to.have.key('_rev')
           expect(p.has_id()).to.be(true)
           expect(p.has_rev()).to.be(true)
           expect(p.get_id()).to.be('Snowball')
@@ -143,13 +135,9 @@ module.exports =
       works:(done)->
         p = new Pet('Snowball',db)
         expect(p.get_id()).to.be('Snowball')
-        expect(p.data).not.to.have.key('_id')
-        expect(p.data).not.to.have.key('_rev')
         p.save (err,ok)->
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).not.to.have.key('_id')
-          expect(p.data).not.to.have.key('_rev')
           expect(p.has_id()).to.be(true)
           expect(p.has_rev()).to.be(true)
           expect(p.get_id()).to.be('Snowball')
@@ -165,14 +153,11 @@ module.exports =
         p.set_db(db)
         p.set 'species','dog'
         p.set 'name','Snowball'
+        expect(p.get 'name').to.be('Snowball')
         p.save (err,ok)->
 
           expect(err).to.be(null)
           expect(ok).to.be.ok()
-          expect(p.data).not.to.have.key('_id')
-          expect(p.data).not.to.have.key('_rev')
-          expect(p.data).not.to.have.key('id')
-          expect(p.data).not.to.have.key('rev')
           expect(p.has_id()).to.be(true)
           expect(p.has_rev()).to.be(true)
 
@@ -185,6 +170,7 @@ module.exports =
             name = p2.get 'name'
             expect(name).to.be('Snowball')
             done()
+
 
 
   construct_with_args_in_any_order:
@@ -255,7 +241,7 @@ module.exports =
       works:(done)->
         p = new Pet(db,test_data)
         p.save ->
-          p2 = new Pet db,p.id
+          p2 = new Pet db, p.get_id()
           p2.on 'retrieve', ->
             done()
           p2.retrieve()
@@ -322,7 +308,7 @@ module.exports =
               type:'string'
           validations:
             check_sillyness:(err)->
-              if @data.name == 'Snowball'
+              if @get('name') == 'Snowball'
                 err "name is silly"
 
         p = new Pet db,
@@ -347,11 +333,12 @@ module.exports =
               type:'date'
 
         p = new Pet db
-        dt = new Date(2012,05,02) # june 2,2012
+        dt = new Date(2012,5,2) # june 2,2012
         p.set 'date_of_birth', dt
         p.save (err,ok)->
           check err
           id = p.get_id()
+
           p2 = new Pet id,db
           p2.retrieve (err,ok)->
             check err,'retrieve'
@@ -371,6 +358,7 @@ module.exports =
               throw e
             else
               done()
+
 
   saving_repeatedly:
     is_ok:
@@ -429,7 +417,7 @@ module.exports =
       allowed_after_retrieve:(done)->
         p = new Pet db
         p.save ->
-          p2 = new Pet db, p.id
+          p2 = new Pet db, p.get_id()
           p2.retrieve ->
             p2.reretrieve ->
               done()
@@ -458,22 +446,21 @@ module.exports =
           done()
 
 
+  retrieve_a_null_date:
+    is_not_a_problem:
+      so_it_works:(done)->
 
+        class Pet extends cmc.CouchModel
+          fields:
+            date_of_birth:
+              type:'date'
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        p = new Pet db
+        p.save (err,ok)->
+          expect(ok).to.be.ok()
+          id = p.get_id()
+          p2 = new Pet db,id
+          p2.retrieve (err,ok)->
+            d = p2.get 'date_of_birth'
+            expect(d).to.be(undefined)
+            done()
